@@ -1,0 +1,1520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OnTarget Profit Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: the original OnTarget main window. Toolbar of commands, one tabbed panel (driver tabs, then the
+   windows that used to pop up: Base Values, Report, Action, Help), and the profit totals docked at the bottom. */
+:root{
+  --paper:#F1F3F0; --surface:#FFFFFF; --surface-2:#F6F7F4;
+  --ink:#16211C; --muted:#5A6761; --faint:#87938D;
+  --rule:#DDE3DF; --rule-strong:#C2CBC5;
+  --accent:#233F8C; --accent-hover:#1A3172; --on-accent:#FFFFFF; --accent-soft:#E6EBF8;
+  --gain:#14704A; --gain-soft:#E1F1E8; --loss:#B42318; --loss-soft:#FBE9E6;
+  --target:#FFF5D0; --target-rule:#DDB64A;
+  --scrim:rgba(10,16,13,.5);
+  --shadow:0 1px 2px rgba(22,33,28,.05), 0 10px 30px rgba(22,33,28,.08);
+  --font-display:"Bricolage Grotesque","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-body:"Public Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --r-sm:7px; --r-md:10px; --r-lg:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1412; --surface:#151D1A; --surface-2:#1A2420;
+    --ink:#E4EBE7; --muted:#9AA8A1; --faint:#71807A;
+    --rule:#26322D; --rule-strong:#36453F;
+    --accent:#9FB4FF; --accent-hover:#BACAFF; --on-accent:#0E1412; --accent-soft:#1E2743;
+    --gain:#5CD39B; --gain-soft:#12291E; --loss:#FF7C6D; --loss-soft:#341A19;
+    --target:#2B2715; --target-rule:#86702C;
+    --scrim:rgba(0,0,0,.6);
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1412; --surface:#151D1A; --surface-2:#1A2420;
+  --ink:#E4EBE7; --muted:#9AA8A1; --faint:#71807A;
+  --rule:#26322D; --rule-strong:#36453F;
+  --accent:#9FB4FF; --accent-hover:#BACAFF; --on-accent:#0E1412; --accent-soft:#1E2743;
+  --gain:#5CD39B; --gain-soft:#12291E; --loss:#FF7C6D; --loss-soft:#341A19;
+  --target:#2B2715; --target-rule:#86702C;
+  --scrim:rgba(0,0,0,.6);
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--font-body)}
+h1,h2,h3{font-family:var(--font-display);margin:0;line-height:1.15;letter-spacing:-.01em;text-wrap:balance}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:1180px;margin-inline:auto;padding-inline:max(16px,3vw)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.eyebrow{margin:0;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.muted{color:var(--muted)}
+
+/* ---------- app bar + toolbar */
+.appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;
+  background:color-mix(in srgb,var(--paper) 90%,transparent);
+  -webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);
+  border-bottom:1px solid var(--rule)}
+.appbar .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding-block:10px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand svg{width:30px;height:30px;flex:none}
+.brand .ring{fill:none;stroke:var(--accent);stroke-width:2.6}
+.brand .bull{fill:var(--target-rule)}
+.brand b{display:block;font-family:var(--font-display);font-size:1.22rem;font-weight:760;letter-spacing:-.02em;line-height:1.1}
+.brand small{display:block;color:var(--muted);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase}
+.scenario{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.select{position:relative;display:inline-flex}
+.select select{appearance:none;-webkit-appearance:none;background:var(--surface);border:1px solid var(--rule-strong);
+  border-radius:var(--r-sm);padding:7px 34px 7px 12px;min-width:9.5rem;max-width:15rem;cursor:pointer;font-weight:600}
+.select::after{content:"";position:absolute;right:13px;top:50%;width:7px;height:7px;border-right:2px solid var(--muted);
+  border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:600;padding:3px 10px;border-radius:999px;
+  background:var(--surface-2);color:var(--muted);border:1px solid var(--rule);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--gain)}
+.pill.dirty{background:var(--target);border-color:var(--target-rule);color:var(--ink)}
+.pill.dirty::before{background:var(--target-rule)}
+.pill.example{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.pill.example::before{display:none}
+
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-block:14px 12px}
+.toolbar .sep{width:1px;align-self:stretch;background:var(--rule-strong);margin-inline:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--rule-strong);background:var(--surface);
+  border-radius:var(--r-sm);padding:7px 13px;cursor:pointer;font-weight:600;font-size:.88rem;line-height:1.2;white-space:nowrap;
+  transition:background-color .15s,border-color .15s,color .15s}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.danger{background:var(--loss);border-color:var(--loss);color:var(--surface)}
+.btn.quiet{border-color:transparent;background:transparent}
+.btn.quiet:hover{background:var(--surface);border-color:var(--rule)}
+.btn svg{width:15px;height:15px;flex:none}
+.ico{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn kbd{font:inherit;text-decoration:underline;text-underline-offset:2px}
+.menu{position:relative}
+.menu>summary{list-style:none}
+.menu>summary::-webkit-details-marker{display:none}
+.menu-pop{position:absolute;left:0;top:calc(100% + 6px);min-width:15rem;background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r-md);box-shadow:var(--shadow);padding:6px;z-index:40;display:flex;flex-direction:column}
+.menu-pop button{border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;font-size:.9rem}
+.menu-pop button:hover,.menu-pop button:focus-visible{background:var(--surface-2)}
+.menu-pop hr{border:0;border-top:1px solid var(--rule);margin:5px 4px}
+
+/* ---------- tabbed panel */
+main.wrap{padding-block:0 28px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-lg)}
+.tabs{display:flex;align-items:stretch;gap:2px;overflow-x:auto;border-bottom:1px solid var(--rule);padding:4px 10px 0;scrollbar-width:thin}
+.tab{appearance:none;border:0;background:transparent;padding:11px 13px 12px;font-weight:600;font-size:.9rem;color:var(--muted);
+  border-bottom:2.5px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;border-radius:var(--r-sm) var(--r-sm) 0 0}
+.tab:hover{color:var(--ink);background:var(--surface-2)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:var(--target-rule)}
+.tab .dot.bad{background:var(--loss)}
+.tab.dead{font-style:italic}
+.tab-sep{width:1px;background:var(--rule);margin:10px 6px 12px;flex:none}
+.tabpanel{padding:20px 22px 24px;container-type:inline-size;container-name:panel}
+.tp-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;margin-bottom:16px}
+.tp-head h2{font-size:clamp(1.25rem,2.4vw,1.55rem);font-weight:740;letter-spacing:-.02em;margin-top:3px}
+.tp-total{font-size:.88rem;color:var(--muted);display:flex;align-items:center;gap:10px}
+.sub{font-size:1rem;font-weight:700;margin:26px 0 8px}
+.notice{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:12px 14px;border-radius:var(--r-md);
+  background:var(--loss-soft);color:var(--ink);margin-bottom:16px;font-size:.9rem}
+.notice.info{background:var(--accent-soft)}
+
+/* ---------- driver rows */
+.dhead,.drow{display:grid;grid-template-columns:minmax(0,1.2fr) 6.8rem minmax(10rem,1.3fr) 8.8rem 7.6rem;gap:8px 16px;align-items:center;padding-inline:12px}
+.dhead{grid-template-areas:none;font-size:.66rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+  padding-block:7px;background:var(--surface-2);border-radius:var(--r-sm)}
+.drow{grid-template-areas:"label base adj target impact";padding-block:12px;border-bottom:1px solid var(--rule)}
+.dlabel{grid-area:label;min-width:0}.dbase{grid-area:base}.adj{grid-area:adj}.dtarget{grid-area:target}.dimpact{grid-area:impact}
+.dname{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
+.dname::before{content:"";width:7px;height:7px;border-radius:50%;background:transparent;flex:none;margin-left:-11px;margin-right:-4px}
+.drow.changed .dname::before{background:var(--target-rule)}
+.dhelp{display:block;color:var(--muted);font-size:.78rem;line-height:1.35;margin-top:1px}
+.badge{font-size:.66rem;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.dbase .v{font-weight:500}
+.mlabel{display:none}
+.adj{display:flex;align-items:center;gap:6px;min-width:0}
+.ud{flex:none;width:28px;height:28px;border:1px solid var(--rule-strong);background:var(--surface);border-radius:var(--r-sm);cursor:pointer;
+  display:grid;place-items:center;font-size:1rem;line-height:1}
+.ud:hover{border-color:var(--ink)}
+.ud:disabled{opacity:.4;cursor:not-allowed}
+.slider{position:relative;flex:1;min-width:0;display:flex;align-items:center;height:28px}
+.slider input{position:relative;width:100%;margin:0;height:28px;accent-color:var(--accent);cursor:pointer;background:transparent}
+.slider input:disabled{cursor:not-allowed}
+.basetick{position:absolute;top:50%;width:2px;height:14px;border-radius:1px;background:var(--faint);
+  transform:translate(-1px,-50%);left:calc(var(--p,0) * (100% - 16px) + 8px);pointer-events:none}
+.field{display:flex;align-items:center;gap:2px;border:1px solid var(--target-rule);background:var(--target);border-radius:var(--r-sm);padding-inline:8px}
+.field:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+.field input{width:100%;min-width:0;border:0;background:transparent;text-align:right;padding:6px 1px;font-variant-numeric:tabular-nums;font-weight:650;outline:none}
+.field input.bad{color:var(--loss)}
+.field input:disabled{cursor:not-allowed}
+.affix{color:var(--muted);font-size:.84rem}
+.chip{display:inline-block;min-width:6.6rem;padding:4px 8px;border-radius:var(--r-sm);font-weight:650;background:var(--surface-2);
+  color:var(--faint);font-variant-numeric:tabular-nums;text-align:right}
+.chip.gain{background:var(--gain-soft);color:var(--gain)}
+.chip.loss{background:var(--loss-soft);color:var(--loss)}
+.drow.dead{color:var(--faint)}
+.drow.dead .field{background:var(--surface-2);border-color:var(--rule)}
+
+@container panel (max-width:820px){
+  .dhead{display:none}
+  .drow{grid-template-columns:minmax(0,1fr) 6.8rem 7.6rem;grid-template-areas:"label base impact" "adj adj target"}
+  .mlabel{display:block;color:var(--muted);font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+  .dname::before{margin-left:0;margin-right:0}
+}
+@container panel (max-width:520px){
+  .drow{grid-template-columns:minmax(0,1fr) 7.2rem;grid-template-areas:"label label" "base impact" "adj target";gap:8px 12px}
+  .dbase{text-align:left}
+}
+
+/* ---------- small tables */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{padding:7px 12px;border-bottom:1px solid var(--rule)}
+thead th{text-align:left;font-size:.66rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);background:var(--surface-2);border-bottom:0}
+thead th:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm)} thead th:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0}
+th.n,td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini{min-width:480px}
+tr.sub td{font-weight:650}
+tr.total td{font-weight:750;border-top:1.5px solid var(--ink)}
+tr.grp td{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);padding-top:14px}
+td.gain{color:var(--gain)} td.loss{color:var(--loss)} td.zero{color:var(--faint)}
+
+/* ---------- profit bar (always visible, like the original's totals) */
+.profitbar{position:sticky;bottom:env(safe-area-inset-bottom,0px);z-index:20;margin-top:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden}
+.profitbar>div{padding:11px 18px;min-width:0}
+.profitbar>div+div{border-left:1px solid var(--rule)}
+.pb-val{font-family:var(--font-display);font-size:clamp(1.15rem,2.6vw,1.6rem);font-weight:760;letter-spacing:-.025em;line-height:1.15;font-variant-numeric:tabular-nums}
+.pb-sub{font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.profitbar .add.gain{background:var(--gain-soft)} .profitbar .add.gain .pb-val{color:var(--gain)}
+.profitbar .add.loss{background:var(--loss-soft)} .profitbar .add.loss .pb-val{color:var(--loss)}
+@media (max-width:520px){.profitbar>div{padding:9px 10px}.pb-sub{display:none}}
+
+/* ---------- base values */
+.bv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.bv-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+@container panel (max-width:760px){.bv{grid-template-columns:minmax(0,1fr)}}
+fieldset{border:1px solid var(--rule);border-radius:var(--r-md);padding:10px 14px 12px;margin:0;min-width:0}
+legend{font-family:var(--font-display);font-weight:720;padding:0 6px;font-size:1rem}
+.frow{display:grid;grid-template-columns:minmax(0,1fr) 9.4rem;gap:10px;align-items:center;padding:4px 0}
+.frow label,.frow .lab{font-size:.87rem;line-height:1.3}
+.frow input{width:100%;text-align:right;border:1px solid var(--target-rule);background:var(--target);border-radius:var(--r-sm);padding:6px 8px;font-variant-numeric:tabular-nums;font-weight:600}
+.frow input[readonly]{background:var(--surface-2);border-color:var(--rule);color:var(--muted);font-weight:500}
+.frow input.bad{border-color:var(--loss)}
+.frow input::placeholder{color:var(--accent);font-weight:600;opacity:.85}
+.frow .out{text-align:right;font-weight:650;font-variant-numeric:tabular-nums;padding:6px 9px}
+.hint{font-size:.79rem;color:var(--muted);margin:2px 0 6px;line-height:1.4}
+.seg{display:inline-flex;border:1px solid var(--rule-strong);border-radius:var(--r-sm);overflow:hidden;margin:2px 0 6px}
+.seg label{cursor:pointer;position:relative}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:block;padding:5px 11px;font-size:.82rem;font-weight:600}
+.seg input:checked+span{background:var(--accent);color:var(--on-accent)}
+.seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:-2px}
+.wip-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.wip-msg{font-size:.8rem;color:var(--muted)}
+.results .frow{padding:3px 0;border-top:1px solid var(--rule)}
+.results h4{margin:10px 0 2px;font-size:.66rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.errors{color:var(--loss);font-size:.86rem;margin:0;padding-left:18px}
+.bv-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--rule)}
+.bv-state{font-size:.88rem;color:var(--muted)}
+
+/* ---------- report (the original's printout) */
+.sheet{max-width:860px;margin:0 auto;border:1px solid var(--rule);border-radius:var(--r-md);padding:26px 30px;background:var(--surface)}
+.sheet-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px 24px;border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:6px}
+.sheet-head h2{font-size:1.35rem;font-weight:760}
+.sheet-head dl{margin:0;display:grid;grid-template-columns:auto auto;gap:2px 12px;font-size:.88rem}
+.sheet-head dt{color:var(--muted)} .sheet-head dd{margin:0;font-weight:650}
+.sheet h3{font-size:1rem;font-weight:720;margin:20px 0 6px}
+.report-actions{display:flex;justify-content:flex-end;margin-bottom:12px}
+
+/* ---------- action + help */
+.ideas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+@container panel (max-width:860px){.ideas{grid-template-columns:minmax(0,1fr)}}
+.idea-col h3{font-size:1.05rem;font-weight:720;margin-bottom:6px}
+.idea-col h4{display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.idea-col h4 .badge{background:var(--target);color:var(--ink);border:1px solid var(--target-rule);text-transform:none;letter-spacing:0}
+.idea{border-top:1px solid var(--rule)}
+.idea summary{cursor:pointer;padding:8px 0;font-weight:600;font-size:.9rem;list-style:none;display:flex;justify-content:space-between;gap:10px}
+.idea summary::-webkit-details-marker{display:none}
+.idea summary::after{content:"+";color:var(--muted);font-weight:500}
+.idea[open] summary::after{content:"−"}
+.idea p{margin:0 0 10px;color:var(--muted);font-size:.87rem}
+.help-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:28px}
+@container panel (max-width:820px){.help-grid{grid-template-columns:minmax(0,1fr)}}
+.terms{margin:0}
+.terms>div{padding:9px 0;border-top:1px solid var(--rule)}
+.terms dt{font-weight:650}
+.terms dd{margin:2px 0 0;color:var(--muted);font-size:.88rem;max-width:68ch}
+.steps{margin:0;padding-left:20px;font-size:.9rem}
+.steps li{margin-bottom:6px}
+.formula{background:var(--surface-2);border:1px solid var(--rule);border-radius:var(--r-md);padding:12px 14px;font-size:.86rem;line-height:1.7}
+.formula b{font-weight:650}
+
+footer.wrap{padding-block:6px 32px;color:var(--muted);font-size:.8rem}
+footer p{margin:0 0 4px;max-width:90ch}
+
+/* ---------- dialogs + toast */
+dialog{border:1px solid var(--rule);border-radius:var(--r-lg);padding:0;background:var(--surface);color:var(--ink);
+  width:min(520px,calc(100vw - 32px));max-width:none;max-height:calc(100dvh - 32px);box-shadow:var(--shadow)}
+dialog::backdrop{background:var(--scrim)}
+.dlg{display:flex;flex-direction:column}
+.dlg-head{padding:18px 20px 12px;border-bottom:1px solid var(--rule)}
+.dlg-head h2{font-size:1.2rem;font-weight:740}
+.dlg-head p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.dlg-body{padding:16px 20px}
+.dlg-foot{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:12px 20px;border-top:1px solid var(--rule);background:var(--surface-2);border-radius:0 0 var(--r-lg) var(--r-lg)}
+.text-input{width:100%;border:1px solid var(--rule-strong);background:var(--surface);border-radius:var(--r-sm);padding:8px 10px;margin-top:6px}
+.err{color:var(--loss);font-size:.86rem;min-height:1.2em;margin:6px 0 0}
+.radio-row{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px;font-size:.9rem}
+.radio-row label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.radio-row input{accent-color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,16px);
+  background:var(--ink);color:var(--paper);padding:10px 14px;border-radius:var(--r-md);display:flex;gap:14px;align-items:center;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;max-width:calc(100vw - 32px);font-size:.9rem;box-shadow:var(--shadow)}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{background:none;border:0;color:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:0}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+/* ---------- print: only the report */
+@media print{
+  :root{--paper:#fff;--surface:#fff;--surface-2:#fff}
+  .appbar,.toolbar,.tabs,.profitbar,.toast,dialog,footer,.tabpanel,.no-print{display:none!important}
+  #panel-report,#panel-report[hidden]{display:block!important;padding:0}
+  .panel{border:0}
+  .sheet{border:0;padding:0;max-width:none}
+  body{font-size:12px;background:#fff}
+}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle class="ring" cx="16" cy="16" r="13"/><circle class="ring" cx="16" cy="16" r="7"/><circle class="bull" cx="16" cy="16" r="2.8"/></svg>
+      <div><b>OnTarget</b><small>Helping you make your practice more valuable</small></div>
+    </div>
+    <div class="scenario">
+      <label class="eyebrow" for="scenarioSelect">Scenario</label>
+      <span class="select"><select id="scenarioSelect"></select></span>
+      <span class="pill" id="statusPill">Saved</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="toolbar" role="toolbar" aria-label="Scenario commands">
+    <button class="btn" type="button" id="btnNew" title="Create a new scenario">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M12 5v14M5 12h14"/></svg>New…</button>
+    <button class="btn primary" type="button" id="btnSave" title="Save the current scenario (Ctrl+S)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"/></svg>Save</button>
+    <button class="btn" type="button" id="btnDelete" title="Delete the current scenario">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Delete</button>
+    <button class="btn" type="button" id="btnReset" title="Reset target values to base values">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></svg>Reset</button>
+    <span class="sep" aria-hidden="true"></span>
+    <button class="btn" type="button" id="btnBase" title="Enter base period data">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M4 20h16M6 16V9m6 7V5m6 11v-4"/></svg>Base Values</button>
+    <button class="btn" type="button" id="btnPrint" title="Print the current scenario">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M7 9V4h10v5M7 17H5v-6h14v6h-2M7 14h10v6H7z"/></svg>Print</button>
+    <button class="btn" type="button" id="btnAction" title="Tell me how to achieve my targets">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M5 12h12M13 6l6 6-6 6"/></svg>Turn this scenario into ACTION</button>
+    <details class="menu" id="moreMenu">
+      <summary class="btn quiet">More
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="menu-pop" role="menu">
+        <button type="button" role="menuitem" data-act="saveas">Save as…</button>
+        <hr>
+        <button type="button" role="menuitem" data-act="export">Export backup (.json)</button>
+        <button type="button" role="menuitem" data-act="import">Import backup…</button>
+        <hr>
+        <button type="button" role="menuitem" data-act="restore">Restore the Sample scenario</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="panel">
+    <div class="tabs" role="tablist" aria-label="OnTarget sections" id="tabs">
+      <button class="tab" role="tab" id="tab-people" aria-controls="panel-people" data-tab="people">People Power<span class="dot" hidden></span></button>
+      <button class="tab" role="tab" id="tab-fees" aria-controls="panel-fees" data-tab="fees">Fees &amp; Rates<span class="dot" hidden></span></button>
+      <button class="tab dead" role="tab" id="tab-clients" aria-controls="panel-clients" data-tab="clients">Client Statistics</button>
+      <button class="tab" role="tab" id="tab-costs" aria-controls="panel-costs" data-tab="costs">Costs<span class="dot" hidden></span></button>
+      <span class="tab-sep" aria-hidden="true"></span>
+      <button class="tab" role="tab" id="tab-base" aria-controls="panel-base" data-tab="base">Base Values<span class="dot" hidden></span></button>
+      <button class="tab" role="tab" id="tab-report" aria-controls="panel-report" data-tab="report">Report</button>
+      <button class="tab" role="tab" id="tab-action" aria-controls="panel-action" data-tab="action">Action</button>
+      <button class="tab" role="tab" id="tab-help" aria-controls="panel-help" data-tab="help">Help</button>
+    </div>
+
+    <!-- People Power -->
+    <section class="tabpanel" id="panel-people" role="tabpanel" aria-labelledby="tab-people" hidden>
+      <div class="notice" data-needbase hidden><span>This scenario's base values are incomplete, so targets can't be worked out yet.</span><button class="btn" type="button" data-goto="base">Open Base Values</button></div>
+      <div class="tp-head">
+        <div><p class="eyebrow">People Power</p><h2>Are you getting the best you can from your people?</h2></div>
+        <div class="tp-total">Impact of this tab <span class="chip" id="tot-people">–</span></div>
+      </div>
+      <div class="dhead" aria-hidden="true"><span>Driver</span><span class="num">Base</span><span>Adjust</span><span class="num">Target</span><span class="num">Profit impact</span></div>
+      <div id="rows-people"></div>
+      <h3 class="sub">What these targets mean</h3>
+      <div class="table-wrap"><table class="mini"><thead><tr><th>Item</th><th class="n">Base</th><th class="n">Target</th><th class="n">Difference</th></tr></thead><tbody id="res-people"></tbody></table></div>
+    </section>
+
+    <!-- Fees & Rates -->
+    <section class="tabpanel" id="panel-fees" role="tabpanel" aria-labelledby="tab-fees" hidden>
+      <div class="notice" data-needbase hidden><span>This scenario's base values are incomplete, so targets can't be worked out yet.</span><button class="btn" type="button" data-goto="base">Open Base Values</button></div>
+      <div class="tp-head">
+        <div><p class="eyebrow">Fees &amp; Rates</p><h2>Are you earning enough for the work you do?</h2></div>
+        <div class="tp-total">Impact of this tab <span class="chip" id="tot-fees">–</span></div>
+      </div>
+      <div class="dhead" aria-hidden="true"><span>Driver</span><span class="num">Base</span><span>Adjust</span><span class="num">Target</span><span class="num">Profit impact</span></div>
+      <div id="rows-fees"></div>
+      <h3 class="sub">What these targets mean</h3>
+      <div class="table-wrap"><table class="mini"><thead><tr><th>Item</th><th class="n">Base</th><th class="n">Target</th><th class="n">Difference</th></tr></thead><tbody id="res-fees"></tbody></table></div>
+    </section>
+
+    <!-- Client Statistics (present in the original, never connected) -->
+    <section class="tabpanel" id="panel-clients" role="tabpanel" aria-labelledby="tab-clients" hidden>
+      <div class="notice info"><span>This tab was on the original OnTarget screen, but the program never connected it to any calculation. Its fields have no effect on profit. It is kept here so the layout matches the original.</span></div>
+      <div class="tp-head">
+        <div><p class="eyebrow">Client Statistics</p><h2>Clients won, lost and delighted</h2></div>
+      </div>
+      <div class="dhead" aria-hidden="true"><span>Driver</span><span class="num">Base</span><span>Adjust</span><span class="num">Target</span><span class="num">Profit impact</span></div>
+      <div id="rows-clients"></div>
+    </section>
+
+    <!-- Costs -->
+    <section class="tabpanel" id="panel-costs" role="tabpanel" aria-labelledby="tab-costs" hidden>
+      <div class="notice" data-needbase hidden><span>This scenario's base values are incomplete, so targets can't be worked out yet.</span><button class="btn" type="button" data-goto="base">Open Base Values</button></div>
+      <div class="tp-head">
+        <div><p class="eyebrow">Costs</p><h2>Are you keeping your costs under control?</h2></div>
+        <div class="tp-total">Impact of this tab <span class="chip" id="tot-costs">–</span></div>
+      </div>
+      <div class="dhead" aria-hidden="true"><span>Driver</span><span class="num">Base</span><span>Adjust</span><span class="num">Target</span><span class="num">Profit impact</span></div>
+      <div id="rows-costs"></div>
+      <h3 class="sub">What these targets mean</h3>
+      <div class="table-wrap"><table class="mini"><thead><tr><th>Item</th><th class="n">Base</th><th class="n">Target</th><th class="n">Difference</th></tr></thead><tbody id="res-costs"></tbody></table></div>
+    </section>
+
+    <!-- Base Values -->
+    <section class="tabpanel" id="panel-base" role="tabpanel" aria-labelledby="tab-base" hidden>
+      <div class="tp-head">
+        <div><p class="eyebrow">Base Values</p><h2>Last year's actual results</h2></div>
+        <p class="muted" style="margin:0;max-width:52ch;font-size:.9rem">Every target is measured against these figures. Changes take effect as soon as the figures are complete.</p>
+      </div>
+      <div class="bv">
+        <div class="bv-col">
+          <fieldset>
+            <legend>People Power</legend>
+            <div class="frow"><label for="bv-partners">Number of partners</label><input id="bv-partners" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-people">Total number of people (including partners)</label><input id="bv-people" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-hpw">Average hours available per person per week</label><input id="bv-hpw" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-weeks">Number of weeks available in the year</label><input id="bv-weeks" inputmode="decimal" autocomplete="off"></div>
+            <p class="hint">Partners means equity partners only. Weeks available is 52 less leave, public holidays, sick leave and training; many firms use 47.</p>
+          </fieldset>
+          <fieldset>
+            <legend>Productivity</legend>
+            <div class="seg" role="radiogroup" aria-label="Productivity entry">
+              <label><input type="radio" name="pmode" value="pct" id="pm-pct"><span>Average productivity (%)</span></label>
+              <label><input type="radio" name="pmode" value="hours" id="pm-hours"><span>Total hours charged</span></label>
+            </div>
+            <div class="frow"><label for="bv-prod">Average productivity (%)</label><input id="bv-prod" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-hours">Total hours charged</label><input id="bv-hours" inputmode="decimal" autocomplete="off"></div>
+            <p class="hint">Enter one; the other is calculated.</p>
+          </fieldset>
+          <fieldset>
+            <legend>Costs</legend>
+            <div class="frow"><label for="bv-tc">Total costs</label><input id="bv-tc" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-sal">Total team member salaries and on-costs</label><input id="bv-sal" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-fix">Fixed costs for the year</label><input id="bv-fix" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-var">Variable operating cost per hour charged</label><input id="bv-var" readonly tabindex="-1"></div>
+            <p class="hint">Salaries include salaried partners but nothing paid to equity partners. Variable cost is total costs less salaries and fixed costs, per hour charged.</p>
+          </fieldset>
+        </div>
+        <div class="bv-col">
+          <fieldset>
+            <legend>WIP and Fees</legend>
+            <p class="hint">Leave any one field blank, then click Calculate. If every field is filled, ending WIP is recalculated.</p>
+            <div class="frow"><label for="bv-open">Opening work in progress</label><input id="bv-open" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-time">Add time charged during the year</label><input id="bv-time" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-disb">Add disbursements</label><input id="bv-disb" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-wu">Add write-ups (downs)</label><input id="bv-wu" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-fees">Less total fees billed during the year</label><input id="bv-fees" inputmode="decimal" autocomplete="off"></div>
+            <div class="frow"><label for="bv-end">Ending work in progress</label><input id="bv-end" inputmode="decimal" autocomplete="off"></div>
+            <div class="wip-actions"><span class="wip-msg" id="wipMsg"></span><button class="btn" type="button" id="btnCalc">Calculate</button></div>
+          </fieldset>
+          <fieldset class="results">
+            <legend>Results</legend>
+            <h4>Base year</h4>
+            <div class="frow"><span class="lab">Gross hourly rate</span><span class="out" id="rv-rate">–</span></div>
+            <div class="frow"><span class="lab">Net profit per partner</span><span class="out" id="rv-npp">–</span></div>
+            <div class="frow"><span class="lab">Net profit margin (%)</span><span class="out" id="rv-npm">–</span></div>
+            <div class="frow"><span class="lab">Net profit</span><span class="out" id="rv-np">–</span></div>
+            <h4>Base values for the ten drivers</h4>
+            <div id="rv-drivers"></div>
+          </fieldset>
+        </div>
+      </div>
+      <ul class="errors" id="baseErrors" aria-live="polite" style="margin-top:14px"></ul>
+      <div class="bv-foot">
+        <span class="bv-state" id="bvState"></span>
+        <button class="btn" type="button" id="bvRevert">Undo changes since last save</button>
+      </div>
+    </section>
+
+    <!-- Report -->
+    <section class="tabpanel" id="panel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
+      <div class="report-actions no-print"><button class="btn primary" type="button" id="btnPrint2">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico" d="M7 9V4h10v5M7 17H5v-6h14v6h-2M7 14h10v6H7z"/></svg>Print report</button></div>
+      <article class="sheet">
+        <div class="sheet-head">
+          <div><p class="eyebrow">OnTarget</p><h2>Helping you make your practice more valuable</h2></div>
+          <dl><dt>Scenario:</dt><dd id="rep-scn">–</dd><dt>Date:</dt><dd id="rep-date">–</dd></dl>
+        </div>
+        <h3>Profit Drivers</h3>
+        <div class="table-wrap"><table class="mini">
+          <thead><tr><th>Driver</th><th class="n">Base Value</th><th class="n">Targeted Value</th><th class="n">Profit Impact</th><th class="n">% Impact</th></tr></thead>
+          <tbody id="rep-drivers"></tbody>
+        </table></div>
+        <h3>Outcomes</h3>
+        <div class="table-wrap"><table class="mini">
+          <thead><tr><th>Item</th><th class="n">Base</th><th class="n">Target</th><th class="n">Difference</th></tr></thead>
+          <tbody id="rep-out"></tbody>
+        </table></div>
+      </article>
+    </section>
+
+    <!-- Action -->
+    <section class="tabpanel" id="panel-action" role="tabpanel" aria-labelledby="tab-action" hidden>
+      <div class="tp-head">
+        <div><p class="eyebrow">Turn this scenario into ACTION</p><h2>What you can do to achieve your targets</h2></div>
+        <p class="muted" style="margin:0;max-width:52ch;font-size:.9rem">Ideas from the original Action guide, grouped by tab. Areas linked to the targets you have changed are marked.</p>
+      </div>
+      <div class="ideas" id="ideas"></div>
+    </section>
+
+    <!-- Help -->
+    <section class="tabpanel" id="panel-help" role="tabpanel" aria-labelledby="tab-help" hidden>
+      <div class="tp-head"><div><p class="eyebrow">Help</p><h2>What all the terms mean</h2></div></div>
+      <div class="help-grid">
+        <dl class="terms" id="terms"></dl>
+        <div>
+          <h3 class="sub" style="margin-top:0">How to perform a sensitivity analysis</h3>
+          <ol class="steps">
+            <li>Pick a scenario from the Scenario list, or click <b>New…</b> to create one.</li>
+            <li>On the <b>Base Values</b> tab, enter last year's results. The results show net profit, profit per partner, margin and gross hourly rate.</li>
+            <li>On the <b>People Power</b>, <b>Fees &amp; Rates</b> and <b>Costs</b> tabs, set targets. Type a value, drag the slider, or use the − and + buttons.</li>
+            <li>Watch the Profit Impact column and the totals at the bottom. <b>Targeted Profit</b> updates with every change.</li>
+            <li>Click <b>Save</b> to keep the scenario, <b>Reset</b> to put the targets back to base, or <b>Print</b> for the report.</li>
+            <li>Open the <b>Action</b> tab for ideas on reaching the targets.</li>
+          </ol>
+          <h3 class="sub">How the numbers are worked out</h3>
+          <div class="formula">
+            <b>Total people</b> = partners × (1 + leverage)<br>
+            <b>Hours charged</b> = total people × time available × productivity<br>
+            <b>Net fees</b> = hours charged × hourly rate × disbursement factor × value index × billing index<br>
+            <b>Total costs</b> = average cost × team members + variable cost × hours charged + fixed costs<br>
+            <b>Net profit</b> = net fees − total costs
+          </div>
+          <p class="hint" style="margin-top:10px">Profit impact: the targets are applied one at a time in this order: partners, leverage, time, productivity, rate, value index, billing index, average cost, variable cost, fixed costs. Each impact is the change in profit at that step, so the impacts add up to the additional profit. If you change partners and leave leverage at its base value, the number of team members stays the same, as in the original program. A target within 0.005 of its base value is treated as unchanged.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="profitbar" aria-live="polite">
+    <div><p class="eyebrow">Base Profit</p><div class="pb-val" id="pbBase">–</div><div class="pb-sub" id="pbBaseSub">&nbsp;</div></div>
+    <div><p class="eyebrow">Targeted Profit</p><div class="pb-val" id="pbTarget">–</div><div class="pb-sub" id="pbTargetSub">&nbsp;</div></div>
+    <div class="add" id="pbAddCell"><p class="eyebrow">Additional Profit</p><div class="pb-val" id="pbAdd">–</div><div class="pb-sub" id="pbAddSub">&nbsp;</div></div>
+  </div>
+</main>
+
+<footer class="wrap">
+  <p>Rebuilt from OnTarget 2000 (RAS, 1999). The formulas were recovered from the original program, so the results match it. Scenarios are saved in this browser on this computer only. Use <b>More › Export backup</b> to keep a copy or move them to another computer.</p>
+  <p id="storageNote" hidden><b>This browser is blocking storage, so Save only lasts until the page closes. Use Export backup to keep your scenarios.</b></p>
+</footer>
+
+<!-- Name prompt -->
+<dialog id="nameDlg" aria-labelledby="nameTitle">
+  <form class="dlg" id="nameForm" novalidate>
+    <div class="dlg-head"><h2 id="nameTitle">New Scenario</h2></div>
+    <div class="dlg-body">
+      <label class="eyebrow" for="nameInput">Scenario name</label>
+      <input class="text-input" id="nameInput" maxlength="40" autocomplete="off">
+      <div class="radio-row" id="nameStart">
+        <label><input type="radio" name="start" value="copy" checked> Copy the current base values</label>
+        <label><input type="radio" name="start" value="blank"> Start with empty base values</label>
+      </div>
+      <p class="err" id="nameErr" aria-live="polite"></p>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="nameCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="nameOk">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Confirm -->
+<dialog id="confirmDlg" aria-labelledby="confirmTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="confirmTitle">Confirm</h2><p id="confirmBody"></p></div>
+    <div class="dlg-foot" id="confirmFoot"></div>
+  </div>
+</dialog>
+
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastAct" hidden></button></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= model ================= */
+const STORE_KEY = 'ontarget.planner.v1';
+const TAB_KEY = 'ontarget.planner.tab';
+
+// The one example scenario (the original program's "Sample" practice), with the targets it was last left on.
+const SAMPLE = {
+  name: 'Sample',
+  base: { partners: 6, people: 45, hpw: 40, weeks: 47, prodMode: 'hours', hoursCharged: 59220, prodPct: null,
+          totalCosts: 1500000, salaries: 780000, fixedCosts: 50000,
+          openWip: 95000, timeCharged: 4000000, disb: 25000, writeUps: -250000, fees: 3850000, endWip: 20000 },
+  targets: { L: 7.5, prod: 0.71 }
+};
+const BASE_KEYS = ['partners','people','hpw','weeks','hoursCharged','prodPct','totalCosts','salaries','fixedCosts',
+                   'openWip','timeCharged','disb','writeUps','fees','endWip'];
+const WIP_KEYS = ['openWip','timeCharged','disb','writeUps','fees','endWip'];
+
+// Calculation (waterfall) order is the original program's: partners first, fixed costs last.
+const DRIVERS = [
+  { key:'P',    tab:'people', label:'Partners', fmt:'num', dec:2, step:1, sstep:0.5,
+    help:'Equity partners working in the firm. Count part-timers as a fraction.' },
+  { key:'L',    tab:'people', label:'Leverage', fmt:'num', dec:2, step:1, sstep:0.05,
+    help:'Team members per partner. Total people = partners × (1 + leverage).' },
+  { key:'T',    tab:'people', label:'Time Available (per person)', fmt:'hrs', dec:1, step:10, sstep:5,
+    help:'Hours each person is available to work in a year.' },
+  { key:'prod', tab:'people', label:'Productivity (%)', fmt:'pct', dec:2, step:1, sstep:0.5,
+    help:'Hours charged ÷ hours available.' },
+  { key:'R',    tab:'fees', label:'Hourly Charge Rate', fmt:'money', dec:2, step:10, sstep:0.5,
+    help:'Gross time charged to WIP ÷ hours charged.' },
+  { key:'V',    tab:'fees', label:'Value Index (%)', fmt:'pct', dec:2, step:1, sstep:0.25,
+    help:'WIP kept after write-ups and write-downs.' },
+  { key:'B',    tab:'fees', label:'Billing Index (%)', fmt:'pct', dec:2, step:1, sstep:0.25,
+    help:'Fees billed ÷ WIP after write-ups. Over 100% means WIP was drawn down.' },
+  { key:'avg',  tab:'costs', label:'Average Cost (per person)', fmt:'money', dec:0, step:100, sstep:100,
+    help:'Salaries and on-costs per team member (equity partners excluded).' },
+  { key:'var',  tab:'costs', label:'Variable Cost (per charged hour)', fmt:'money', dec:2, step:1, sstep:0.05,
+    help:'Operating costs that rise with hours charged.' },
+  { key:'fix',  tab:'costs', label:'Fixed Costs', fmt:'money', dec:0, step:100, sstep:500,
+    help:'Rent, insurance and other costs that don’t move with activity.' },
+];
+const DRV = Object.fromEntries(DRIVERS.map(d => [d.key, d]));
+// On-screen order follows the original screens (Fees & Rates: rate, billing index, value index).
+const TAB_ROWS = { people:['P','L','T','prod'], fees:['R','B','V'], costs:['avg','var','fix'] };
+const TAB_NAMES = { people:'People Power', fees:'Fees & Rates', costs:'Costs' };
+
+const isNum = v => typeof v === 'number' && isFinite(v);
+const clone = o => JSON.parse(JSON.stringify(o));
+const scaleOf = d => d.fmt === 'pct' ? 100 : 1;
+
+function solveWip(b){
+  const v = {}; WIP_KEYS.forEach(k => v[k] = isNum(b[k]) ? b[k] : null);
+  const blanks = WIP_KEYS.filter(k => v[k] === null);
+  if (blanks.length > 1) return { ok:false, v, blanks, solved:null };
+  const n = k => v[k] ?? 0;
+  const O = n('openWip'), T = n('timeCharged'), D = n('disb'), W = n('writeUps'), F = n('fees'), E = n('endWip');
+  const solved = blanks[0] || 'endWip';
+  switch (solved){
+    case 'openWip':     v.openWip = E + F - T - D - W; break;
+    case 'timeCharged': v.timeCharged = E + F - O - D - W; break;
+    case 'disb':        v.disb = E + F - O - T - W; break;
+    case 'writeUps':    v.writeUps = E + F - O - T - D; break;
+    case 'fees':        v.fees = O + T + D + W - E; break;
+    default:            v.endWip = O + T + D + W - F;
+  }
+  return { ok:true, v, blanks, solved };
+}
+
+function deriveBase(b){
+  const errors = [];
+  const P = b.partners, N = b.people, hpw = b.hpw, wk = b.weeks;
+  if (!(P > 0)) errors.push('Enter the number of partners (more than zero).');
+  if (!(N > 0)) errors.push('Enter the total number of people.');
+  else if (P > 0 && N < P) errors.push('Total number of people must be greater than or equal to the number of partners.');
+  if (!(hpw > 0)) errors.push('Enter the average hours available per person per week.');
+  else if (hpw >= 168) errors.push('Average hours per person per week must be less than 168.');
+  if (!(wk > 0) || wk > 52) errors.push('Number of weeks available must be between 1 and 52.');
+  const T = (hpw || 0) * (wk || 0);
+  const hav = (N || 0) * T;
+  let hch;
+  if (b.prodMode === 'pct'){
+    if (!(b.prodPct > 0)) errors.push('Enter the average productivity.');
+    hch = (b.prodPct || 0) * hav;
+  } else {
+    if (!(b.hoursCharged > 0)) errors.push('Total hours charged must be greater than zero.');
+    hch = b.hoursCharged || 0;
+  }
+  const tc = b.totalCosts, sal = b.salaries, fix = b.fixedCosts;
+  if (!isNum(tc)) errors.push('Enter total costs.');
+  if (!isNum(sal)) errors.push('Enter total team member salaries and on-costs.');
+  if (!isNum(fix)) errors.push('Enter fixed costs for the year (0 if none).');
+  if ([tc, sal, fix].some(v => isNum(v) && v < 0)) errors.push('Costs can’t be negative.');
+  if (isNum(tc) && isNum(sal) && isNum(fix) && sal + fix > tc + 0.5)
+    errors.push('Salaries plus fixed costs are more than total costs. Check the cost figures.');
+  const w = solveWip(b);
+  if (!w.ok) errors.push('Only one WIP and Fees field can be blank.');
+  const time = w.v.timeCharged ?? 0, disb = w.v.disb ?? 0, wu = w.v.writeUps ?? 0, fees = w.v.fees ?? 0;
+  if (w.ok && !(time > 0)) errors.push('Time charged during the year must be greater than zero.');
+  if (w.ok && time > 0 && time + disb + wu <= 0) errors.push('WIP after write-downs must be greater than zero.');
+  const team = (N || 0) - (P || 0);
+  const tcv = tc || 0, salv = sal || 0, fixv = fix || 0;
+  const d = {
+    P: P || 0, L: P > 0 ? team / P : 0, T, prod: hav > 0 ? hch / hav : 0, R: hch > 0 ? time / hch : 0,
+    V: time + disb > 0 ? (time + disb + wu) / (time + disb) : 0,
+    B: time + disb + wu > 0 ? fees / (time + disb + wu) : 0,
+    avg: team > 0 ? salv / team : 0, var: hch > 0 ? (tcv - salv - fixv) / hch : 0, fix: fixv
+  };
+  const df = time > 0 ? (time + disb) / time : 1;
+  const np = fees - tcv;
+  return { ok: errors.length === 0, errors, d, df, wip: w,
+    actual: { np, npp: P > 0 ? np / P : 0, npm: fees ? np / fees : 0, rate: hch > 0 ? time / hch : 0, hch, hav } };
+}
+
+function outcome(x, df){
+  const people = x.P * (1 + x.L), team = x.P * x.L, hav = people * x.T, hch = hav * x.prod;
+  const gross = hch * x.R, disb = gross * (df - 1), wipg = gross + disb, wu = wipg * (x.V - 1), wipn = wipg + wu, fees = wipn * x.B;
+  const sal = x.avg * team, varc = x.var * hch, fixc = x.fix, costs = sal + varc + fixc, np = fees - costs;
+  return { people, team, tap: x.T, hav, hch, gross, disb, wipg, wu, wipn, fees, sal, varc, fixc, costs, np,
+           npm: fees ? np / fees : 0, npp: x.P ? np / x.P : 0 };
+}
+
+// Blank targets keep the base value. Leverage left blank keeps the number of team members constant when
+// partners change (the original program's rule). A target within 0.005 of base (in the units shown)
+// counts as unchanged, so a rounded figure doesn't create a phantom impact.
+function usedTargets(base, targets){
+  const used = {}; let leverageAuto = false;
+  for (const d of DRIVERS){
+    const b = base[d.key]; let t = targets ? targets[d.key] : null;
+    if (!isNum(t)){
+      if (d.key === 'L' && used.P > 0 && Math.abs(used.P - base.P) > 1e-12){ t = b * base.P / used.P; leverageAuto = true; }
+      else t = b;
+    } else if (Math.abs((t - b) * scaleOf(d)) <= 0.005 + 1e-9) t = b;
+    used[d.key] = t;
+  }
+  return { used, leverageAuto };
+}
+
+function plan(scn){
+  const base = deriveBase(scn.base);
+  if (!base.ok) return { ok:false, base };
+  const { used, leverageAuto } = usedTargets(base.d, scn.targets);
+  const cur = { ...base.d };
+  const baseOut = outcome(cur, base.df);
+  const impacts = {}; let prev = baseOut.np;
+  for (const d of DRIVERS){
+    cur[d.key] = used[d.key];
+    const np = outcome(cur, base.df).np;
+    impacts[d.key] = np - prev; prev = np;
+  }
+  const targetOut = outcome(used, base.df);
+  return { ok:true, base, used, leverageAuto, impacts, baseOut, targetOut, additional: targetOut.np - baseOut.np };
+}
+
+/* ================= formatting ================= */
+const nfCache = {};
+const nf = (min, max = min) => nfCache[min + ':' + max] ||= new Intl.NumberFormat('en-NZ', { minimumFractionDigits:min, maximumFractionDigits:max });
+const tiny = (v, dec) => Math.abs(v) < 0.5 * Math.pow(10, -dec);
+function fmtMoney(v, dec = 0){ if (!isNum(v)) return '–'; const s = '$' + nf(dec).format(Math.abs(v)); return v < 0 && !tiny(v, dec) ? '(' + s + ')' : s; }
+function fmtNum(v, dec = 0){ if (!isNum(v)) return '–'; const s = nf(dec).format(Math.abs(v)); return v < 0 && !tiny(v, dec) ? '(' + s + ')' : s; }
+function fmtPct(v, dec = 2){ return isNum(v) ? nf(dec).format(v * 100) + '%' : '–'; }
+function fmtSigned(v, dec = 0){ if (!isNum(v) || tiny(v, dec)) return '–'; return (v > 0 ? '+' : '−') + '$' + nf(dec).format(Math.abs(v)); }
+function fmtDriver(d, v){
+  if (!isNum(v)) return '–';
+  const x = v * scaleOf(d), s = nf(d.dec).format(x);
+  return d.fmt === 'pct' ? s + '%' : d.fmt === 'money' ? '$' + s : d.fmt === 'hrs' ? s + ' h' : s;
+}
+function parseNum(str){
+  if (str == null) return null;
+  let s = String(str).trim().replace(/[−–]/g, '-').replace(/[\s,$%h]/g, '');
+  if (s === '') return null;
+  let neg = false; const m = s.match(/^\((.*)\)$/); if (m){ neg = true; s = m[1]; }
+  const n = Number(s);
+  if (!isFinite(n)) return NaN;
+  return neg ? -n : n;
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const chipClass = v => 'chip' + (tiny(v, 0) ? '' : v > 0 ? ' gain' : ' loss');
+
+/* ================= storage ================= */
+let store = { scenarios: [], last: 'Sample' };
+let current = null;     // working copy of the open scenario
+let lastPlan = null;
+let storageOK = true;
+
+function sanitizeScenario(s){
+  if (!s || typeof s !== 'object' || typeof s.name !== 'string' || !s.name.trim()) return null;
+  const out = { name: s.name.trim().slice(0, 40), base: {}, targets: {} };
+  BASE_KEYS.forEach(k => { const v = s.base && s.base[k]; out.base[k] = isNum(v) ? v : null; });
+  out.base.prodMode = s.base && s.base.prodMode === 'pct' ? 'pct' : 'hours';
+  DRIVERS.forEach(d => { const v = s.targets && s.targets[d.key]; if (isNum(v)) out.targets[d.key] = v; });
+  if (s.savedAt) out.savedAt = String(s.savedAt);
+  return out;
+}
+function loadStore(){
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw){
+      const s = JSON.parse(raw);
+      const list = Array.isArray(s.scenarios) ? s.scenarios.map(sanitizeScenario).filter(Boolean) : [];
+      if (list.length){ store = { scenarios: list, last: typeof s.last === 'string' ? s.last : list[0].name }; return; }
+    }
+  } catch (e){ storageOK = false; }
+  store = { scenarios: [clone(SAMPLE)], last: 'Sample' };
+}
+function persist(){
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); storageOK = true; }
+  catch (e){ storageOK = false; }
+  $('#storageNote').hidden = storageOK;
+  return storageOK;
+}
+const findSaved = name => store.scenarios.find(s => s.name === name);
+const exists = name => store.scenarios.some(s => s.name.toLowerCase() === name.toLowerCase());
+function baseSig(b){
+  const o = {}; BASE_KEYS.forEach(k => { const v = b[k]; o[k] = isNum(v) ? +v.toFixed(9) : null; });
+  o.prodMode = b.prodMode === 'pct' ? 'pct' : 'hours';
+  return JSON.stringify(o);
+}
+function signature(s){
+  const t = {}; DRIVERS.forEach(d => { const v = s.targets[d.key]; if (isNum(v)) t[d.key] = +v.toFixed(9); });
+  return baseSig(s.base) + JSON.stringify(t);
+}
+function isDirty(){ const s = current && findSaved(current.name); return !!current && (!s || signature(s) !== signature(current)); }
+
+/* ================= DOM helpers ================= */
+const $ = (sel, el = document) => el.querySelector(sel);
+const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+let toastTimer = null;
+function toast(msg, action){
+  const t = $('#toast'), b = $('#toastAct');
+  $('#toastMsg').textContent = msg;
+  b.hidden = !action; b.onclick = null;
+  if (action){ b.textContent = action.label; b.onclick = () => { action.fn(); t.classList.remove('show'); }; }
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), action ? 6000 : 3200);
+}
+
+/* ================= tabs ================= */
+const TAB_IDS = $$('.tab').map(t => t.dataset.tab);
+let activeTab = 'people';
+function showTab(id, focus){
+  if (!TAB_IDS.includes(id)) id = 'people';
+  activeTab = id;
+  for (const t of $$('.tab')){
+    const on = t.dataset.tab === id;
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+    t.tabIndex = on ? 0 : -1;
+    $('#panel-' + t.dataset.tab).hidden = !on;
+  }
+  if (focus) $('#tab-' + id).focus();
+  try { localStorage.setItem(TAB_KEY, id); } catch (e){}
+  try { if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id); } catch (e){}
+  if (id === 'report') renderReport();
+}
+function wireTabs(){
+  $('#tabs').addEventListener('click', e => { const t = e.target.closest('.tab'); if (t) showTab(t.dataset.tab); });
+  $('#tabs').addEventListener('keydown', e => {
+    const i = TAB_IDS.indexOf(activeTab);
+    let j = null;
+    if (e.key === 'ArrowRight') j = (i + 1) % TAB_IDS.length;
+    else if (e.key === 'ArrowLeft') j = (i - 1 + TAB_IDS.length) % TAB_IDS.length;
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = TAB_IDS.length - 1;
+    if (j !== null){ e.preventDefault(); showTab(TAB_IDS[j], true); }
+  });
+  $$('[data-goto]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.goto)));
+}
+
+/* ================= driver rows ================= */
+const rows = {};
+function stepLabel(d){ return d.fmt === 'pct' ? d.step + ' percentage point' : d.fmt === 'money' ? '$' + d.step : d.fmt === 'hrs' ? d.step + ' hours' : String(d.step); }
+
+function rowHTML(id, label, help, fmt){
+  const pre = fmt === 'money' ? '<span class="affix">$</span>' : '';
+  const suf = fmt === 'pct' ? '<span class="affix">%</span>' : fmt === 'hrs' ? '<span class="affix">h</span>' : '';
+  return `
+    <div class="dlabel"><span class="dname">${label}${id === 'L' ? '<span class="badge" hidden>team size held</span>' : ''}</span><span class="dhelp">${help}</span></div>
+    <div class="dbase num"><span class="mlabel">Base</span><span class="v">–</span></div>
+    <div class="adj">
+      <button type="button" class="ud" data-dir="-1" aria-label="Decrease ${label}">−</button>
+      <div class="slider"><span class="basetick" title="Base value"></span><input type="range" id="rng-${id}" aria-label="${label} target"></div>
+      <button type="button" class="ud" data-dir="1" aria-label="Increase ${label}">+</button>
+    </div>
+    <div class="dtarget"><span class="mlabel">Target</span><span class="field">${pre}<input type="text" inputmode="decimal" id="tgt-${id}" autocomplete="off" aria-label="${label} target value">${suf}</span></div>
+    <div class="dimpact num"><span class="mlabel">Profit impact</span><span class="chip">–</span></div>`;
+}
+
+function buildDrivers(){
+  for (const tab of Object.keys(TAB_ROWS)){
+    const host = $('#rows-' + tab);
+    for (const key of TAB_ROWS[tab]){
+      const d = DRV[key];
+      const row = document.createElement('div');
+      row.className = 'drow'; row.dataset.key = key;
+      row.innerHTML = rowHTML(key, d.label, d.help, d.fmt);
+      host.appendChild(row);
+      const r = { d, row, base: $('.dbase .v', row), rng: $('input[type=range]', row), tick: $('.basetick', row),
+                  inp: $('input[type=text]', row), chip: $('.chip', row), badge: $('.badge', row), btns: $$('.ud', row), lo: 0, hi: 1 };
+      r.btns.forEach(b => b.setAttribute('aria-label', `${b.dataset.dir === '1' ? 'Increase' : 'Decrease'} ${d.label} by ${stepLabel(d)}`));
+      rows[key] = r;
+      wireRow(r);
+    }
+  }
+  // Client Statistics: laid out like the original, but inert (it was never connected to the model).
+  const dead = [['cw','Clients Won (%)','Share of prospective clients won.'], ['cl','Clients Lost (%)','Share of clients lost during the year.'],
+                ['cd','Client Delight (%)','Share of clients who are delighted with the service.']];
+  const host = $('#rows-clients');
+  for (const [id, label, help] of dead){
+    const row = document.createElement('div');
+    row.className = 'drow dead';
+    row.innerHTML = rowHTML(id, label, help, 'pct');
+    $$('input,button', row).forEach(el => el.disabled = true);
+    host.appendChild(row);
+  }
+}
+
+function wireRow(r){
+  const d = r.d, sc = scaleOf(d);
+  r.inp.addEventListener('input', () => {
+    const n = parseNum(r.inp.value);
+    if (n === null){ r.inp.classList.remove('bad'); setTarget(d.key, null, true); return; }
+    if (isNaN(n) || n < 0 || (d.key === 'P' && n <= 0)){ r.inp.classList.add('bad'); return; }
+    r.inp.classList.remove('bad');
+    setTarget(d.key, n / sc, true);
+  });
+  r.inp.addEventListener('focus', () => r.inp.select());
+  r.inp.addEventListener('blur', () => { r.inp.classList.remove('bad'); renderRow(d.key, true); });
+  r.inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); r.inp.blur(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown'){ e.preventDefault(); bump(d.key, e.key === 'ArrowUp' ? 1 : -1); renderRow(d.key, true); }
+  });
+  r.rng.addEventListener('input', () => setTarget(d.key, Number(r.rng.value) / sc));
+  r.btns.forEach(b => b.addEventListener('click', () => bump(d.key, Number(b.dataset.dir))));
+}
+
+function bump(key, dir){
+  if (!lastPlan || !lastPlan.ok) return;
+  const d = DRV[key], sc = scaleOf(d);
+  let next = Math.round((lastPlan.used[key] * sc + dir * d.step) * 1e6) / 1e6;
+  if (next < 0) next = 0;
+  if (key === 'P' && next <= 0) return;
+  setTarget(key, next / sc);
+}
+
+function setTarget(key, value, typing){
+  if (value === null) delete current.targets[key]; else current.targets[key] = value;
+  recompute(typing ? key : null);
+}
+
+function rangeFor(d, b){
+  let lo, hi; const s = d.sstep;
+  switch (d.key){
+    case 'P':    lo = s; hi = Math.max(b * 3, b + 6); break;
+    case 'L':    lo = 0; hi = Math.max(b * 3, b + 6); break;
+    case 'T':    lo = b > 0 ? b * 0.5 : 0; hi = b > 0 ? b * 1.5 : 2600; break;
+    case 'prod': lo = 0; hi = 100; break;
+    case 'R':    lo = 0; hi = Math.max(b * 2.5, 50); break;
+    case 'V':
+    case 'B':    lo = Math.min(50, b - 10); hi = Math.max(150, b + 10); break;
+    case 'avg':  lo = 0; hi = Math.max(b * 2.5, 1000); break;
+    case 'var':  lo = 0; hi = Math.max(b * 3, 10); break;
+    default:     lo = 0; hi = Math.max(b * 3, 10000);
+  }
+  return { lo: Math.max(0, Math.floor(lo / s) * s), hi: Math.ceil(hi / s) * s };
+}
+function setRanges(){
+  const base = deriveBase(current.base);
+  for (const d of DRIVERS){
+    const r = rows[d.key];
+    const { lo, hi } = rangeFor(d, base.ok ? base.d[d.key] * scaleOf(d) : 0);
+    r.lo = lo; r.hi = hi;
+    r.rng.min = lo; r.rng.max = hi; r.rng.step = d.sstep;
+  }
+}
+
+function renderRow(key, forceInput, editingKey){
+  const r = rows[key], d = r.d, sc = scaleOf(d), p = lastPlan;
+  const ok = p && p.ok;
+  r.rng.disabled = !ok; r.inp.disabled = !ok; r.btns.forEach(b => b.disabled = !ok);
+  if (!ok){
+    r.base.textContent = '–'; r.chip.textContent = '–'; r.chip.className = 'chip';
+    if (forceInput || key !== editingKey) r.inp.value = '';
+    r.row.classList.remove('changed'); if (r.badge) r.badge.hidden = true;
+    return;
+  }
+  const b = p.base.d[key], u = p.used[key], ud = u * sc;
+  r.base.textContent = fmtDriver(d, b);
+  if (ud > r.hi){ r.hi = Math.ceil(ud / d.sstep) * d.sstep; r.rng.max = r.hi; }
+  if (ud < r.lo){ r.lo = Math.max(0, Math.floor(ud / d.sstep) * d.sstep); r.rng.min = r.lo; }
+  r.rng.value = ud;
+  r.tick.style.setProperty('--p', Math.min(1, Math.max(0, (b * sc - r.lo) / ((r.hi - r.lo) || 1))));
+  if (forceInput || key !== editingKey) r.inp.value = nf(d.dec).format(ud);
+  r.chip.textContent = fmtSigned(p.impacts[key]);
+  r.chip.className = chipClass(p.impacts[key]);
+  r.row.classList.toggle('changed', Math.abs(u - b) > 1e-12);
+  if (r.badge) r.badge.hidden = !p.leverageAuto;
+}
+
+/* ================= result tables ================= */
+const RESULTS = {
+  people: [
+    ['people', 'Total people (including partners)', 'n2'],
+    ['team', 'Team members (excluding partners)', 'n2'],
+    ['hav', 'Total hours available', 'n0'],
+    ['hch', 'Total hours charged to WIP', 'n0'],
+    ['gross', 'Gross charges to WIP', 'm'],
+  ],
+  fees: [
+    ['gross', 'Gross charges to WIP', 'm'],
+    ['disb', 'Disbursements charged to WIP', 'm'],
+    ['wipg', 'WIP before write-ups (downs)', 'm', 'sub'],
+    ['wu', 'Write-ups (downs)', 'm'],
+    ['wipn', 'WIP after write-ups (downs)', 'm', 'sub'],
+    ['fees', 'Net fees billed', 'm', 'total'],
+  ],
+  costs: [
+    ['sal', 'Team salaries and wages', 'm'],
+    ['varc', 'Variable costs', 'm'],
+    ['fixc', 'Fixed costs', 'm'],
+    ['costs', 'Total costs', 'm', 'sub'],
+    ['fees', 'Net fees billed', 'm'],
+    ['np', 'Net profit', 'm', 'total'],
+    ['npm', 'Net profit margin (%)', 'p'],
+    ['npp', 'Net profit per partner', 'm'],
+  ],
+  report: [
+    ['hav', 'Total hours available', 'n0'],
+    ['hch', 'Total hours charged to WIP', 'n0'],
+    ['gross', 'Gross charges to WIP', 'm'],
+    ['disb', 'Disbursements charged to WIP', 'm'],
+    ['wu', 'Write-ups (downs)', 'm'],
+    ['fees', 'Net fees billed', 'm', 'sub'],
+    ['sal', 'Team salaries and wages', 'm'],
+    ['varc', 'Variable costs', 'm'],
+    ['fixc', 'Fixed costs', 'm'],
+    ['np', 'Net profit', 'm', 'total'],
+    ['npm', 'Net profit margin (%)', 'p'],
+    ['npp', 'Net profit per partner', 'm'],
+  ],
+};
+const COST_LIKE = ['sal', 'varc', 'fixc', 'costs'];
+const NEUTRAL = ['people', 'team', 'hav', 'hch', 'disb', 'wipg', 'gross'];
+function resultRowsHTML(list){
+  const p = lastPlan;
+  return list.map(([k, label, f, cls]) => {
+    if (!p || !p.ok) return `<tr class="${cls || ''}"><td>${label}</td><td class="n">–</td><td class="n">–</td><td class="n zero">–</td></tr>`;
+    const b = p.baseOut[k], t = p.targetOut[k], diff = t - b;
+    const fmt = f === 'm' ? v => fmtMoney(v) : f === 'p' ? v => fmtPct(v, 2) : f === 'n0' ? v => fmtNum(v, 0) : v => fmtNum(v, 2);
+    let dTxt, zero;
+    if (f === 'm'){ zero = tiny(diff, 0); dTxt = fmtSigned(diff); }
+    else if (f === 'p'){ zero = Math.abs(diff) < 0.00005; dTxt = zero ? '–' : (diff > 0 ? '+' : '−') + nf(2).format(Math.abs(diff * 100)) + ' pts'; }
+    else { const dec = f === 'n0' ? 0 : 2; zero = tiny(diff, dec); dTxt = zero ? '–' : (diff > 0 ? '+' : '−') + nf(dec).format(Math.abs(diff)); }
+    const tone = zero ? 'zero' : NEUTRAL.includes(k) ? '' : ((diff > 0) !== COST_LIKE.includes(k) ? 'gain' : 'loss');
+    return `<tr class="${cls || ''}"><td>${label}</td><td class="n">${fmt(b)}</td><td class="n">${fmt(t)}</td><td class="n ${tone}">${dTxt}</td></tr>`;
+  }).join('');
+}
+function renderResults(){
+  for (const tab of ['people', 'fees', 'costs']) $('#res-' + tab).innerHTML = resultRowsHTML(RESULTS[tab]);
+}
+
+function renderReport(){
+  const p = lastPlan;
+  $('#rep-scn').textContent = current.name;
+  $('#rep-date').textContent = new Date().toLocaleDateString('en-NZ', { day:'numeric', month:'long', year:'numeric' });
+  let html = '';
+  for (const tab of ['people', 'fees', 'costs']){
+    html += `<tr class="grp"><td colspan="5">${TAB_NAMES[tab]}</td></tr>`;
+    for (const key of TAB_ROWS[tab]){
+      const d = DRV[key];
+      if (!p.ok){ html += `<tr><td>${d.label}</td><td class="n">–</td><td class="n">–</td><td class="n">–</td><td class="n">–</td></tr>`; continue; }
+      const imp = p.impacts[key], bnp = Math.abs(p.baseOut.np);
+      const pct = bnp ? imp / bnp : 0;
+      const tone = tiny(imp, 0) ? 'zero' : imp > 0 ? 'gain' : 'loss';
+      html += `<tr><td>${d.label}</td><td class="n">${fmtDriver(d, p.base.d[key])}</td><td class="n">${fmtDriver(d, p.used[key])}</td>
+        <td class="n ${tone}">${fmtSigned(imp)}</td><td class="n ${tone}">${tiny(imp, 0) ? '–' : (pct > 0 ? '+' : '−') + nf(1).format(Math.abs(pct * 100)) + '%'}</td></tr>`;
+    }
+  }
+  if (p.ok){
+    const tone = tiny(p.additional, 0) ? 'zero' : p.additional > 0 ? 'gain' : 'loss';
+    const pct = p.baseOut.np ? p.additional / Math.abs(p.baseOut.np) : 0;
+    html += `<tr class="total"><td>Additional profit</td><td class="n">${fmtMoney(p.baseOut.np)}</td><td class="n">${fmtMoney(p.targetOut.np)}</td>
+      <td class="n ${tone}">${fmtSigned(p.additional)}</td><td class="n ${tone}">${tiny(p.additional, 0) ? '–' : (pct > 0 ? '+' : '−') + nf(1).format(Math.abs(pct * 100)) + '%'}</td></tr>`;
+  }
+  $('#rep-drivers').innerHTML = html;
+  $('#rep-out').innerHTML = resultRowsHTML(RESULTS.report);
+}
+
+/* ================= totals, tab markers, status ================= */
+function renderTotals(){
+  const p = lastPlan;
+  $$('[data-needbase]').forEach(n => n.hidden = p.ok);
+  const cell = $('#pbAddCell');
+  if (!p.ok){
+    ['pbBase', 'pbTarget', 'pbAdd'].forEach(id => $('#' + id).textContent = '–');
+    ['pbBaseSub', 'pbTargetSub', 'pbAddSub'].forEach(id => $('#' + id).innerHTML = '&nbsp;');
+    cell.className = 'add';
+    for (const tab of ['people', 'fees', 'costs']){ const c = $('#tot-' + tab); c.textContent = '–'; c.className = 'chip'; }
+    return;
+  }
+  const b = p.baseOut, t = p.targetOut;
+  $('#pbBase').textContent = fmtMoney(b.np);
+  $('#pbBaseSub').textContent = fmtMoney(b.npp) + ' per partner';
+  $('#pbTarget').textContent = fmtMoney(t.np);
+  $('#pbTargetSub').textContent = fmtMoney(t.npp) + ' per partner';
+  $('#pbAdd').textContent = fmtSigned(p.additional);
+  const pct = b.np ? p.additional / Math.abs(b.np) : 0;
+  $('#pbAddSub').textContent = tiny(p.additional, 0) ? 'Targets match base' : (pct > 0 ? '+' : '−') + nf(1).format(Math.abs(pct * 100)) + '% on base profit';
+  cell.className = 'add' + (tiny(p.additional, 0) ? '' : p.additional > 0 ? ' gain' : ' loss');
+  for (const tab of ['people', 'fees', 'costs']){
+    const sum = TAB_ROWS[tab].reduce((a, k) => a + p.impacts[k], 0);
+    const c = $('#tot-' + tab); c.textContent = fmtSigned(sum); c.className = chipClass(sum);
+  }
+}
+function renderTabMarkers(){
+  const p = lastPlan;
+  for (const tab of ['people', 'fees', 'costs']){
+    const changed = p.ok && TAB_ROWS[tab].some(k => Math.abs(p.used[k] - p.base.d[k]) > 1e-12);
+    $('#tab-' + tab + ' .dot').hidden = !changed;
+  }
+  const dot = $('#tab-base .dot');
+  const bad = !deriveBase(draft).ok;
+  dot.hidden = !bad; dot.classList.toggle('bad', bad);
+}
+function renderStatus(){
+  const dirty = isDirty();
+  const pill = $('#statusPill');
+  if (dirty){ pill.className = 'pill dirty'; pill.textContent = 'Unsaved changes'; }
+  else if (current.name === 'Sample'){ pill.className = 'pill example'; pill.textContent = 'Example figures'; }
+  else { pill.className = 'pill'; pill.textContent = 'Saved'; }
+  document.title = current.name === 'Sample' ? 'OnTarget Profit Planner' : current.name + ' · OnTarget Profit Planner';
+  renderBaseState();
+}
+function recompute(editingKey){
+  lastPlan = plan(current);
+  for (const d of DRIVERS) renderRow(d.key, false, editingKey);
+  renderTotals();
+  renderResults();
+  renderIdeas();
+  renderBaseResults();
+  renderTabMarkers();
+  renderStatus();
+  if (activeTab === 'report') renderReport();
+}
+function fillSelect(){
+  $('#scenarioSelect').innerHTML = store.scenarios.map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+  $('#scenarioSelect').value = current.name;
+}
+function loadScenario(name){
+  const s = findSaved(name) || store.scenarios[0];
+  current = clone(s);
+  store.last = current.name;
+  persist();
+  draft = clone(current.base);
+  fillBaseForm();
+  setRanges();
+  fillSelect();
+  recompute();
+  for (const d of DRIVERS) renderRow(d.key, true);
+}
+
+/* ================= base values tab ================= */
+const BV = [
+  ['partners','bv-partners',2], ['people','bv-people',2], ['hpw','bv-hpw',2], ['weeks','bv-weeks',1],
+  ['hoursCharged','bv-hours',0], ['prodPct','bv-prod',2,'pct'],
+  ['totalCosts','bv-tc',0], ['salaries','bv-sal',0], ['fixedCosts','bv-fix',0],
+  ['openWip','bv-open',0], ['timeCharged','bv-time',0], ['disb','bv-disb',0], ['writeUps','bv-wu',0], ['fees','bv-fees',0], ['endWip','bv-end',0],
+];
+let draft = null;
+const bvFmt = (v, dec, pct) => isNum(v) ? nf(0, dec).format(pct ? v * 100 : v) : '';
+
+function fillBaseForm(){
+  for (const [k, id, dec, pct] of BV){ const el = $('#' + id); el.value = bvFmt(draft[k], dec, pct); el.classList.remove('bad'); }
+  $('#pm-hours').checked = draft.prodMode !== 'pct';
+  $('#pm-pct').checked = draft.prodMode === 'pct';
+  updateBaseDerived();
+}
+function updateBaseDerived(){
+  const pctMode = draft.prodMode === 'pct';
+  const hrs = $('#bv-hours'), prod = $('#bv-prod');
+  hrs.readOnly = pctMode; prod.readOnly = !pctMode;
+  hrs.tabIndex = pctMode ? -1 : 0; prod.tabIndex = pctMode ? 0 : -1;
+  const res = deriveBase(draft), d = res.d;
+  if (pctMode) hrs.value = res.actual.hch > 0 ? nf(0, 0).format(res.actual.hch) : '';
+  else prod.value = d.prod > 0 ? nf(0, 2).format(d.prod * 100) : '';
+  $('#bv-var').value = res.actual.hch > 0 && isNum(draft.totalCosts) ? '$' + nf(2).format(d.var) : '';
+  const w = res.wip;
+  for (const [k, id] of BV.filter(x => WIP_KEYS.includes(x[0]))){
+    $('#' + id).placeholder = (w.ok && w.solved === k && !isNum(draft[k])) ? '= ' + nf(0).format(w.v[k]) : '';
+  }
+  const msg = $('#wipMsg');
+  if (!w.ok) msg.textContent = 'More than one field is blank.';
+  else if (w.blanks.length === 1) msg.textContent = 'Click Calculate to fill in the blank field.';
+  else if (isNum(draft.endWip) && Math.abs(w.v.endWip - draft.endWip) >= 0.5) msg.textContent = `Doesn’t balance: ending WIP should be ${fmtMoney(w.v.endWip)}.`;
+  else msg.textContent = 'Balances.';
+  $('#baseErrors').innerHTML = res.ok ? '' : res.errors.map(x => `<li>${esc(x)}</li>`).join('');
+  return res;
+}
+function renderBaseResults(){
+  const res = deriveBase(current.base), ok = res.ok, d = res.d;
+  $('#rv-rate').textContent = ok ? fmtMoney(res.actual.rate, 2) : '–';
+  $('#rv-npp').textContent = ok ? fmtMoney(res.actual.npp) : '–';
+  $('#rv-npm').textContent = ok ? fmtPct(res.actual.npm, 2) : '–';
+  $('#rv-np').textContent = ok ? fmtMoney(res.actual.np) : '–';
+  $('#rv-drivers').innerHTML = ['P','L','T','prod','R','B','V','avg','var','fix'].map(k =>
+    `<div class="frow"><span class="lab">${DRV[k].label}</span><span class="out">${ok ? fmtDriver(DRV[k], d[k]) : '–'}</span></div>`).join('');
+}
+function renderBaseState(){
+  if (!draft) return;
+  const el = $('#bvState');
+  const ok = deriveBase(draft).ok;
+  const saved = findSaved(current.name);
+  if (!ok) el.textContent = 'Fix the items above. The other tabs keep using the last complete set of figures.';
+  else if (saved && baseSig(saved.base) !== baseSig(current.base)) el.textContent = 'These figures are in use. Click Save to keep them.';
+  else el.textContent = 'These are the saved base values for this scenario.';
+}
+function onBaseEdit(){
+  const res = updateBaseDerived();
+  if (res.ok && baseSig(draft) !== baseSig(current.base)){
+    current.base = clone(draft);
+    setRanges();
+    recompute();
+    for (const d of DRIVERS) renderRow(d.key, true);
+  } else { renderTabMarkers(); renderBaseState(); }
+}
+function wireBase(){
+  for (const [k, id, dec, pct] of BV){
+    const el = $('#' + id);
+    el.addEventListener('input', () => {
+      if (el.readOnly) return;
+      const n = parseNum(el.value);
+      el.classList.toggle('bad', Number.isNaN(n));
+      draft[k] = Number.isNaN(n) || n === null ? null : (pct ? n / 100 : n);
+      onBaseEdit();
+    });
+    el.addEventListener('blur', () => { if (!el.readOnly && !el.classList.contains('bad')) el.value = bvFmt(draft[k], dec, pct); });
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') el.blur(); });
+  }
+  $$('input[name=pmode]').forEach(r => r.addEventListener('change', () => {
+    const res = deriveBase(draft);
+    if (r.value === 'pct' && r.checked){ draft.prodMode = 'pct'; if (res.d.prod > 0) draft.prodPct = res.d.prod; draft.hoursCharged = null; }
+    if (r.value === 'hours' && r.checked){ draft.prodMode = 'hours'; if (res.actual.hch > 0) draft.hoursCharged = Math.round(res.actual.hch); draft.prodPct = null; }
+    fillBaseForm(); onBaseEdit();
+  }));
+  $('#btnCalc').addEventListener('click', () => {
+    const w = solveWip(draft);
+    if (!w.ok){ toast('Only one WIP and Fees field can be blank. Fill in the others, then click Calculate.'); return; }
+    for (const k of WIP_KEYS) draft[k] = w.v[k];
+    fillBaseForm(); onBaseEdit();
+  });
+  $('#bvRevert').addEventListener('click', () => {
+    const saved = findSaved(current.name);
+    if (!saved){ toast('This scenario hasn’t been saved yet.'); return; }
+    draft = clone(saved.base); current.base = clone(saved.base);
+    fillBaseForm(); setRanges(); recompute(); for (const d of DRIVERS) renderRow(d.key, true);
+    toast('Base values put back to the saved figures');
+  });
+}
+
+/* ================= action + help ================= */
+const IDEAS = [
+  { tab:'People Power', groups:[
+    { name:'People Power', keys:['P','L','T'], items:[
+      ['Do you have too many partners?', 'Too many partners for the size of the team means partners end up doing junior work at a junior yield.'],
+      ['Merge with another firm', 'Adds people, but rarely adds profit unless there is real synergy and a good cultural fit.'],
+      ['Get people to work longer hours or work longer yourself', 'Possible, but better to plan spare capacity and then fill it with new work.'],
+      ['Hire more people', 'Hire ahead of the work so partners are free to go out and win more of it.'] ] },
+    { name:'Productivity', keys:['prod'], items:[
+      ['Increase the availability of work', 'Always have valuable work, chargeable or firm-building, ready for people to pick up.'],
+      ['Bringing in new work', 'Let your best fee-getters spend their time getting work, not selling hours.'],
+      ['Focus on your existing clients', 'Clients expect more from their accountant. Offer it before they leave.'],
+      ['Focus on the return on investment for your non-chargeable time', 'Set goals for training, systems, client visits and marketing.'],
+      ['Systematize processes', 'Well-designed systems make delegation, job control and quality possible.'],
+      ['Buy fees', 'Buying a client base is an option, but usually second-best to growing your own.'],
+      ['Delegation and empowerment', 'Senior time spent on junior work is really billed at the junior rate.'],
+      ['Won’t delegation reduce total revenue?', 'Not if you price on value: standard, premium and flexible rates, or fixed prices.'],
+      ['Referral system', 'Make referrals part of your agreement with each client.'],
+      ['Technology acquisition and utilization', 'Powerful, integrated systems pay for themselves over about three years.'],
+      ['Invest in training', 'Better-trained people write off less, stay longer and make delegation easier.'],
+      ['Align your training investment to your strategic objectives', 'Build the skills for advisory work, where most fee growth comes from.'],
+      ['Share information with your team', 'Share targets and results (rates, hours, clients, WIP days) so people can act on them.'] ] } ] },
+  { tab:'Fees & Rates', groups:[
+    { name:'Your hourly charge rate', keys:['R','B','V'], items:[
+      ['Increase your charge rates by 15% NOW', 'Most firms undercharge. Work out how many clients you could afford to lose.'],
+      ['Focus on outcomes not inputs', 'Price on the value you create rather than the hours you spend.'],
+      ['Client selection', 'Choose and keep the clients you can add the most value to.'],
+      ['Bundle services', 'Package services for a fixed fee paid monthly.'],
+      ['Marketing and positioning your firm', 'Position the firm for the higher-value work you want to win.'] ] } ] },
+  { tab:'Costs', groups:[
+    { name:'Managing and controlling costs', keys:['avg','var','fix'], items:[
+      ['Know your cost drivers', 'Work out profit by client, and by partner, not just the fees each one brings in.'],
+      ['Take a return on investment view of your expenses', 'Treat costs as investments and ask what each one returns.'],
+      ['The biggest cost of all', 'Lost opportunities cost the most and never show up in the accounts.'],
+      ['Don’t be afraid to invest in the future', 'Keep spending on training, systems and client relationships.'] ] } ] },
+];
+function buildIdeas(){
+  $('#ideas').innerHTML = IDEAS.map(col => `
+    <div class="idea-col"><h3>${col.tab} tab</h3>
+      ${col.groups.map(g => `<h4 data-keys="${g.keys.join(',')}">${g.name}<span class="badge" hidden>Linked to your targets</span></h4>
+        ${g.items.map(([t, s]) => `<details class="idea"><summary>${esc(t)}</summary><p>${esc(s)}</p></details>`).join('')}`).join('')}
+    </div>`).join('');
+}
+function renderIdeas(){
+  const p = lastPlan;
+  for (const h of $$('#ideas h4')){
+    const linked = p.ok && h.dataset.keys.split(',').some(k => Math.abs(p.used[k] - p.base.d[k]) > 1e-12);
+    $('.badge', h).hidden = !linked;
+  }
+}
+const TERMS = [
+  ['Partners', 'The number of equity owners actively involved in the business. Show part-timers as a fraction. Salaried partners are team members, not partners.'],
+  ['Leverage', 'Team members (everyone except equity partners) divided by the number of partners. Total people = partners × (1 + leverage). If you change partners and leave leverage at its base value, the number of team members stays the same.'],
+  ['Time available (per person)', 'Hours each full-time person is available to work in a year: weekly hours × weeks available.'],
+  ['Productivity (%)', 'Hours charged to clients divided by total hours available.'],
+  ['Hourly charge rate', 'Gross value of time charged to WIP (before write-ups and downs) divided by hours charged: the firm’s average charge-out rate.'],
+  ['Value index (%)', 'WIP after write-ups and downs divided by WIP before them. 90% means 10% of gross charges were written off.'],
+  ['Billing index (%)', 'Fees billed divided by WIP after write-ups and downs. Below 100% means work is building up unbilled. Over time it should average 100%.'],
+  ['Average cost (per person)', 'Salaries, bonuses and on-costs of all team members, including salaried partners, divided by the number of team members. Nothing paid to equity partners is included.'],
+  ['Variable cost (per charged hour)', 'Operating costs other than team salaries and fixed costs, divided by hours charged. Assumed to rise with activity.'],
+  ['Fixed costs', 'Costs that don’t change with people or hours within the year, such as rent and insurance.'],
+  ['Disbursement factor', '(Time charged + disbursements) ÷ time charged in the base year. Held constant, so disbursements grow with time charged.'],
+  ['Base profit', 'Net profit from the base values: fees billed less total costs. The change in WIP is not counted.'],
+  ['Targeted profit', 'Net profit using the target values.'],
+  ['Additional profit', 'Targeted profit less base profit.'],
+  ['Profit impact', 'The change in profit when that driver moves from base to target, applied in the order described opposite.'],
+  ['% impact', 'Profit impact as a percentage of base profit (shown on the report).'],
+];
+function buildHelp(){
+  $('#terms').innerHTML = TERMS.map(([t, d]) => `<div><dt>${esc(t)}</dt><dd>${esc(d)}</dd></div>`).join('');
+}
+
+/* ================= dialogs ================= */
+function confirmDialog({ title, body, buttons }){
+  return new Promise(resolve => {
+    const dlg = $('#confirmDlg');
+    $('#confirmTitle').textContent = title;
+    $('#confirmBody').textContent = body;
+    const foot = $('#confirmFoot');
+    foot.innerHTML = '';
+    let settled = false;
+    const finish = v => { if (settled) return; settled = true; dlg.removeEventListener('close', onClose); if (dlg.open) dlg.close(); resolve(v); };
+    const onClose = () => finish(null);
+    buttons.forEach(b => {
+      const el = document.createElement('button');
+      el.type = 'button'; el.className = 'btn' + (b.kind ? ' ' + b.kind : '');
+      el.textContent = b.label;
+      el.addEventListener('click', () => finish(b.value));
+      foot.appendChild(el);
+    });
+    dlg.addEventListener('close', onClose);
+    dlg.showModal();
+    const last = foot.lastElementChild; if (last) last.focus();
+  });
+}
+function askName({ title, confirm, initial = '', withStart = false, unique = false }){
+  return new Promise(resolve => {
+    const dlg = $('#nameDlg'), form = $('#nameForm'), inp = $('#nameInput'), err = $('#nameErr');
+    $('#nameTitle').textContent = title;
+    $('#nameOk').textContent = confirm;
+    $('#nameStart').hidden = !withStart;
+    inp.value = initial; err.textContent = '';
+    let settled = false;
+    const finish = v => {
+      if (settled) return; settled = true;
+      form.removeEventListener('submit', onSubmit); $('#nameCancel').removeEventListener('click', onCancel); dlg.removeEventListener('close', onCancel);
+      if (dlg.open) dlg.close();
+      resolve(v);
+    };
+    const onCancel = () => finish(null);
+    const onSubmit = e => {
+      e.preventDefault();
+      const name = inp.value.trim();
+      if (!name){ err.textContent = 'Please enter a name for the scenario.'; inp.focus(); return; }
+      if (unique && exists(name)){ err.textContent = `“${name}” already exists. Choose another name.`; inp.focus(); return; }
+      const start = (form.querySelector('input[name=start]:checked') || {}).value || 'copy';
+      finish({ name, start });
+    };
+    form.addEventListener('submit', onSubmit);
+    $('#nameCancel').addEventListener('click', onCancel);
+    dlg.addEventListener('close', onCancel);
+    dlg.showModal();
+    inp.focus(); inp.select();
+  });
+}
+async function guardUnsaved(){
+  if (!isDirty()) return true;
+  const v = await confirmDialog({
+    title: 'Save changes?',
+    body: `Save changes to “${current.name}”?`,
+    buttons: [ { label:'Cancel', value:'cancel' }, { label:'Don’t save', value:'discard' }, { label:'Save', value:'save', kind:'primary' } ]
+  });
+  if (v === 'save'){ saveCurrent(true); return true; }
+  return v === 'discard';
+}
+
+/* ================= commands ================= */
+function saveCurrent(quiet){
+  const rec = clone(current); rec.savedAt = new Date().toISOString();
+  const i = store.scenarios.findIndex(s => s.name === current.name);
+  if (i >= 0) store.scenarios[i] = rec; else store.scenarios.push(rec);
+  store.last = current.name;
+  const ok = persist();
+  fillSelect(); renderStatus();
+  if (!quiet) toast(ok ? `Saved “${current.name}”` : 'Saved for this session only. This browser is blocking storage, so use Export backup to keep a copy.');
+}
+async function saveAs(){
+  const r = await askName({ title:'Save scenario as', confirm:'Save', initial: current.name === 'Sample' ? '' : current.name + ' (copy)' });
+  if (!r) return;
+  const clash = store.scenarios.find(s => s.name.toLowerCase() === r.name.toLowerCase());
+  if (clash && clash.name !== current.name){
+    const v = await confirmDialog({ title:'Already exists', body:`“${clash.name}” already exists. Would you like to replace it?`,
+      buttons:[ { label:'No', value:'no' }, { label:'Yes, replace it', value:'yes', kind:'danger' } ] });
+    if (v !== 'yes') return;
+    store.scenarios = store.scenarios.filter(s => s !== clash);
+  }
+  current.name = r.name;
+  saveCurrent();
+}
+async function newScenario(){
+  if (!(await guardUnsaved())) return;
+  const r = await askName({ title:'New Scenario', confirm:'OK', withStart:true, unique:true });
+  if (!r) return;
+  const base = r.start === 'copy' ? clone(current.base) : Object.assign(Object.fromEntries(BASE_KEYS.map(k => [k, null])), { prodMode:'hours' });
+  store.scenarios.push({ name: r.name, base, targets: {}, savedAt: new Date().toISOString() });
+  persist();
+  loadScenario(r.name);
+  toast(`Created “${r.name}”`);
+  if (r.start === 'blank') showTab('base');
+}
+async function deleteScenario(){
+  if (current.name === 'Sample'){ toast('You can’t delete the Sample scenario.'); return; }
+  if (!findSaved(current.name)){ toast('This scenario hasn’t been saved yet.'); return; }
+  const v = await confirmDialog({ title:'Confirm Delete', body:`Are you sure you want to delete “${current.name}”? This can’t be undone.`,
+    buttons:[ { label:'No', value:'no' }, { label:'Yes, delete', value:'yes', kind:'danger' } ] });
+  if (v !== 'yes') return;
+  const gone = current.name;
+  store.scenarios = store.scenarios.filter(s => s.name !== gone);
+  if (!store.scenarios.length) store.scenarios.push(clone(SAMPLE));
+  persist();
+  loadScenario(store.scenarios[0].name);
+  toast(`Deleted “${gone}”`);
+}
+function resetTargets(){
+  if (!Object.keys(current.targets).length){ toast('Targets already equal the base values.'); return; }
+  const before = clone(current.targets);
+  current.targets = {};
+  recompute();
+  for (const d of DRIVERS) renderRow(d.key, true);
+  toast('Targets reset to base values', { label:'Undo', fn: () => { current.targets = before; recompute(); for (const d of DRIVERS) renderRow(d.key, true); } });
+}
+async function restoreSample(){
+  const v = await confirmDialog({ title:'Restore the Sample scenario?', body:'This puts the Sample scenario back to its original example figures. Your other scenarios are not affected.',
+    buttons:[ { label:'Cancel', value:'no' }, { label:'Restore', value:'yes', kind:'primary' } ] });
+  if (v !== 'yes') return;
+  const i = store.scenarios.findIndex(s => s.name === 'Sample');
+  const fresh = clone(SAMPLE); fresh.savedAt = new Date().toISOString();
+  if (i >= 0) store.scenarios[i] = fresh; else store.scenarios.unshift(fresh);
+  persist();
+  if (current.name === 'Sample') loadScenario('Sample'); else fillSelect();
+  toast('Sample scenario restored');
+}
+function exportBackup(){
+  const data = JSON.stringify({ app:'OnTarget Profit Planner', version:1, exported:new Date().toISOString(), scenarios: store.scenarios }, null, 2);
+  const url = URL.createObjectURL(new Blob([data], { type:'application/json' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `ontarget-scenarios-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast(`Exported ${store.scenarios.length} saved scenario${store.scenarios.length === 1 ? '' : 's'}` + (isDirty() ? '. Unsaved changes were not included.' : ''));
+}
+function importBackup(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    let list;
+    try {
+      const data = JSON.parse(reader.result);
+      list = (Array.isArray(data) ? data : data.scenarios || []).map(sanitizeScenario).filter(Boolean);
+    } catch (e){ list = null; }
+    if (!list || !list.length){ toast('That file isn’t an OnTarget backup.'); return; }
+    for (const s of list){
+      const root = s.name; let n = 2;
+      while (exists(s.name)) s.name = `${root} (${n++})`;
+      store.scenarios.push(s);
+    }
+    persist(); fillSelect();
+    toast(`Imported ${list.length} scenario${list.length === 1 ? '' : 's'}. Pick one from the Scenario list.`);
+  };
+  reader.readAsText(file);
+}
+function printReport(){ showTab('report'); setTimeout(() => window.print(), 50); }
+
+/* ================= wiring ================= */
+function wire(){
+  $('#btnNew').addEventListener('click', newScenario);
+  $('#btnSave').addEventListener('click', () => saveCurrent());
+  $('#btnDelete').addEventListener('click', deleteScenario);
+  $('#btnReset').addEventListener('click', resetTargets);
+  $('#btnBase').addEventListener('click', () => showTab('base'));
+  $('#btnPrint').addEventListener('click', printReport);
+  $('#btnPrint2').addEventListener('click', () => window.print());
+  $('#btnAction').addEventListener('click', () => showTab('action'));
+  const menu = $('#moreMenu');
+  menu.addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    menu.open = false;
+    ({ saveas: saveAs, export: exportBackup, import: () => $('#importFile').click(), restore: restoreSample })[b.dataset.act]();
+  });
+  document.addEventListener('click', e => { if (menu.open && !menu.contains(e.target)) menu.open = false; });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu.open) menu.open = false;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's'){ e.preventDefault(); saveCurrent(); }
+  });
+  $('#importFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) importBackup(f); e.target.value = ''; });
+  const sel = $('#scenarioSelect');
+  sel.addEventListener('change', async () => {
+    const target = sel.value;
+    if (target === current.name) return;
+    sel.value = current.name;
+    if (!(await guardUnsaved())) return;
+    loadScenario(target);
+  });
+  window.addEventListener('beforeunload', e => { if (isDirty()){ e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
+  wireTabs();
+  wireBase();
+}
+
+function init(){
+  loadStore();
+  buildDrivers(); buildIdeas(); buildHelp(); wire();
+  $('#storageNote').hidden = storageOK;
+  loadScenario(findSaved(store.last) ? store.last : store.scenarios[0].name);
+  let tab = location.hash.slice(1);
+  if (!TAB_IDS.includes(tab)){ try { tab = localStorage.getItem(TAB_KEY) || 'people'; } catch (e){ tab = 'people'; } }
+  showTab(tab);
+}
+init();
+})();
+</script>
+</body>
+</html>
