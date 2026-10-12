@@ -4,9 +4,11 @@ A single-file web app for planning an accounting practice's profit. Enter last y
 
 It is a rebuild of **OnTarget 2000** (RAS, 1999), a Windows 98/XP-era planning tool. The original no longer runs on modern Windows. The formulas here were recovered from the original program, so the results match it.
 
+**Open it: https://patrickdnz.github.io/ontarget-profit-planner/**
+
 ## Using it
 
-Download `index.html` and open it in Chrome, Edge, Firefox or Safari. There is nothing to install, and it works offline (fonts fall back to system fonts).
+Use the link above, or download `index.html` and open it in Chrome, Edge, Firefox or Safari. There is nothing to install, and the downloaded file works offline (fonts fall back to system fonts).
 
 The screen follows the original program:
 
@@ -43,6 +45,10 @@ Rules carried over from the original:
 - **A target within 0.005 of its base value** counts as unchanged, so rounded figures don't create phantom impacts.
 
 One change from the original: it ignored Value Index and Billing Index targets within 0.5 percentage points of base (a rounding tolerance applied to the wrong units). This version only ignores genuine rounding differences.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
 
 ## Disclaimer
 
